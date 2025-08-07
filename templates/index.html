@@ -10,19 +10,32 @@
     <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
         <h1 class="text-2xl font-bold text-gray-800 mb-6">Upload Document</h1>
         
-        <form action="/upload" method="POST" enctype="multipart/form-data" class="space-y-4">
-            <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                <input type="file" name="file" id="file" class="hidden" accept=".pdf,.txt,.docx">
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="mb-4">
+                    {% for message in messages %}
+                        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-2">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+        
+        <form action="/upload" method="POST" enctype="multipart/form-data" class="space-y-4" id="uploadForm">
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center" id="dropZone">
+                <input type="file" name="file" id="file" class="hidden" accept=".pdf" required>
                 <label for="file" class="cursor-pointer">
                     <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                     </svg>
-                    <p class="mt-2 text-sm text-gray-600">Click to upload a file</p>
-                    <p class="text-xs text-gray-500">PDF, TXT, or DOCX (Max: 10MB)</p>
+                    <p class="mt-2 text-sm text-gray-600" id="fileStatus">Click to upload a PDF file</p>
+                    <p class="text-xs text-gray-500">PDF only (Max: 16MB)</p>
                 </label>
             </div>
             <div>
-                <button type="submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-md transition duration-200">
+                <button type="submit" id="submitBtn" class="w-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium py-2 px-4 rounded-md transition duration-200">
                     Upload and Process
                 </button>
             </div>
@@ -30,10 +43,75 @@
     </div>
 
     <script>
-        // Show selected file name
-        document.getElementById('file').addEventListener('change', function(e) {
-            const fileName = e.target.files[0]?.name || 'No file selected';
-            document.querySelector('label[for="file"] p:first-of-type').textContent = fileName;
+        const fileInput = document.getElementById('file');
+        const fileStatus = document.getElementById('fileStatus');
+        const submitBtn = document.getElementById('submitBtn');
+        const uploadForm = document.getElementById('uploadForm');
+        const dropZone = document.getElementById('dropZone');
+
+        // Show selected file name and enable submit button
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                if (file.type === 'application/pdf') {
+                    fileStatus.textContent = `Selected: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                    fileStatus.className = 'mt-2 text-sm text-green-600';
+                    submitBtn.disabled = false;
+                    dropZone.className = 'border-2 border-dashed border-green-300 bg-green-50 rounded-lg p-8 text-center';
+                } else {
+                    fileStatus.textContent = 'Please select a PDF file only';
+                    fileStatus.className = 'mt-2 text-sm text-red-600';
+                    submitBtn.disabled = true;
+                    dropZone.className = 'border-2 border-dashed border-red-300 bg-red-50 rounded-lg p-8 text-center';
+                }
+            } else {
+                fileStatus.textContent = 'Click to upload a PDF file';
+                fileStatus.className = 'mt-2 text-sm text-gray-600';
+                submitBtn.disabled = false;
+                dropZone.className = 'border-2 border-dashed border-gray-300 rounded-lg p-8 text-center';
+            }
+        });
+
+        // Form submission handling
+        uploadForm.addEventListener('submit', function(e) {
+            const file = fileInput.files[0];
+            if (!file) {
+                e.preventDefault();
+                alert('Please select a PDF file first');
+                return false;
+            }
+            
+            if (file.type !== 'application/pdf') {
+                e.preventDefault();
+                alert('Please select a PDF file only');
+                return false;
+            }
+
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Uploading...';
+        });
+
+        // Drag and drop functionality
+        dropZone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            dropZone.className = 'border-2 border-dashed border-blue-400 bg-blue-50 rounded-lg p-8 text-center';
+        });
+
+        dropZone.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            if (!fileInput.files[0]) {
+                dropZone.className = 'border-2 border-dashed border-gray-300 rounded-lg p-8 text-center';
+            }
+        });
+
+        dropZone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                fileInput.dispatchEvent(new Event('change'));
+            }
         });
     </script>
 </body>
